@@ -254,8 +254,8 @@ tag_id3_import_musicbrainz(const struct id3_tag *id3_tag,
  * Imports the MusicBrainz TrackId from the UFID tag.
  */
 static void
-tag_id3_import_ufid(const struct id3_tag *id3_tag,
-		    TagHandler &handler) noexcept
+tag_id3_import_ufid_musicbrainz(const struct id3_tag *id3_tag,
+				TagHandler &handler) noexcept
 {
 	for (unsigned i = 0;; ++i) {
 		const id3_frame *frame = id3_tag_findframe(id3_tag, "UFID", i);
@@ -284,6 +284,51 @@ tag_id3_import_ufid(const struct id3_tag *id3_tag,
 		std::string p((const char *)value, length);
 		handler.OnTag(TAG_MUSICBRAINZ_TRACKID, p.c_str());
 	}
+}
+
+/**
+ * Imports the Mildred Songid from the UFID tag.
+ */
+static void
+tag_id3_import_ufid_mildred(const struct id3_tag *id3_tag,
+                            TagHandler &handler) noexcept
+{
+	for (unsigned i = 0;; ++i) {
+		const id3_frame *frame = id3_tag_findframe(id3_tag, "UFID", i);
+		if (frame == nullptr)
+			break;
+
+		id3_field *field = id3_frame_field(frame, 0);
+		if (field == nullptr)
+			continue;
+
+		const id3_latin1_t *name = id3_field_getlatin1(field);
+		if (name == nullptr ||
+			strcmp((const char *)name, "http://mildred.xmtp.net") != 0)
+			continue;
+
+		field = id3_frame_field(frame, 1);
+		if (field == nullptr)
+			continue;
+
+		id3_length_t length;
+		const id3_byte_t *value =
+			id3_field_getbinarydata(field, &length);
+		if (value == nullptr || length == 0)
+			continue;
+
+		std::string p((const char *)value, length);
+		tag_handler_invoke_tag(handler, handler_ctx,
+				       TAG_MILDRED_SONGID, p.c_str());
+	}
+}
+
+static void
+tag_id3_import_ufid(const struct id3_tag *id3_tag,
+		    TagHandler &handler) noexcept
+{
+    tag_id3_import_ufid_musicbrainz(id3_tag, handler);
+    tag_id3_import_ufid_mildred(id3_tag, handler);
 }
 
 void
