@@ -27,6 +27,7 @@
 #include "util/StringView.hxx"
 
 extern "C" {
+#include <regex.h>
 #include <libavutil/dict.h>
 }
 
@@ -51,13 +52,49 @@ FfmpegScanTag(TagType type,
 		handler.OnTag(type, mt->value);
 }
 
+#define STR_SIZE 256
+#define REGEX_MATCHES_MAX 2
+
+static void
+mildred_songid_from_ffmpeg_comment(const char *comment, TagHandler &handler)
+{
+	const char *pat = "Mildred Songid: \\([a-fA-F0-9-]*\\)";
+	regex_t re;
+	regmatch_t pmatch[REGEX_MATCHES_MAX];
+	char str[STR_SIZE];
+	int ret;
+
+	if (0 != (ret = regcomp(&re, pat, 0))) {
+            //LogError(decoder_domain, "Error compiling regex");
+		return;
+	}
+
+	if (0 != (ret = regexec(&re, comment, REGEX_MATCHES_MAX, pmatch, 0))) {
+		regerror(ret, &re, str, STR_SIZE);
+		// FormatErrno(decoder_domain,
+		// 	    "Error executing regex match: \"%s\"", str);
+		return;
+	}
+
+	strncpy(str,
+		comment + pmatch[1].rm_so,
+		(1 + pmatch[1].rm_eo - pmatch[1].rm_so));
+        handler.OnTag(TAG_MILDRED_SONGID, (const char*)str);
+	regfree(&re);
+}
+
 static void
 FfmpegScanPairs(AVDictionary *dict, TagHandler &handler) noexcept
 {
 	AVDictionaryEntry *i = nullptr;
 
-	while ((i = av_dict_get(dict, "", i, AV_DICT_IGNORE_SUFFIX)) != nullptr)
+	while ((i = av_dict_get(dict, "", i, AV_DICT_IGNORE_SUFFIX)) != nullptr) {
 		handler.OnPair(i->key, i->value);
+		if (strcmp("comment", i->key) == 0) {
+			mildred_songid_from_ffmpeg_comment(i->value,
+							   handler);
+		}
+        }
 }
 
 void
