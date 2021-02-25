@@ -105,7 +105,7 @@ icy_server_metadata_page(const Tag &tag, const TagType *types) noexcept
 		p = CopyTruncateString(p, tag_items[item++], end - p);
 
 		if (item <= last_item)
-			p = CopyTruncateString(p, " - ", end - p);
+			p = CopyTruncateString(p, " -​ ", end - p);
 	}
 
 	const auto icy_string = icy_server_metadata_string(stream_title, "");
